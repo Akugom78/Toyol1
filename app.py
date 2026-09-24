@@ -12,7 +12,6 @@ if current_dir not in sys.path:
 
 # ==========================================
 # FIX HUGGING FACE UNAUTHENTICATED WARNING
-# We set the token in the environment BEFORE importing any AI libraries
 # ==========================================
 import streamlit as st
 
@@ -34,8 +33,6 @@ import rag_chain
 # ==========================================
 # 1. LOAD CONFIGURATION & AUTHENTICATOR
 # ==========================================
-# FIX: We use st.session_state instead of @st.cache_resource.
-# This prevents the "widget in cache" warning AND the "DuplicateElementKey" crash.
 if 'authenticator' not in st.session_state:
     with open('config.yaml', 'r', encoding='utf-8') as file:
         config = yaml.load(file, Loader=SafeLoader)
@@ -85,15 +82,12 @@ if st.session_state.get("authentication_status"):
         st.divider()
         
         # Bulletproof Logout Button
-        if st.button("🚪 Logout", use_container_width=True):
+        if st.button(" Logout", use_container_width=True):
             authenticator.logout('Logout', 'main')
-            # Explicitly clear the authentication status from session state
-            if "authentication_status" in st.session_state:
-                del st.session_state["authentication_status"]
-            if "name" in st.session_state:
-                del st.session_state["name"]
-            if "username" in st.session_state:
-                del st.session_state["username"]
+            # Wipe all session state to prevent data leaking to the next user
+            for key in ["authentication_status", "name", "username", "messages", "current_user"]:
+                if key in st.session_state:
+                    del st.session_state[key]
             st.rerun()
             
         st.divider()
@@ -111,9 +105,11 @@ if st.session_state.get("authentication_status"):
                 st.caption("No matching documents.")
             else:
                 for doc in filtered_docs:
-                    st.markdown(f" {doc}")
+                    st.markdown(f"📄 {doc}")
                     
         st.divider()
+        
+        # Clear Chat History Button
         if st.button("🗑️ Clear Chat History", use_container_width=True):
             st.session_state.messages = []
             st.rerun()
@@ -130,8 +126,10 @@ I can assist you with:
 
 How can I help you today?"""
 
-    if "messages" not in st.session_state:
+    # FIX: Tie chat history to the specific username so users don't share history
+    if st.session_state.get("current_user") != username:
         st.session_state.messages = [{"role": "assistant", "content": dynamic_greeting}]
+        st.session_state.current_user = username
 
     # --- DISPLAY CHAT HISTORY ---
     for message in st.session_state.messages:
