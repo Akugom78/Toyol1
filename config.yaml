@@ -1,0 +1,20 @@
+credentials:
+  usernames:
+    admin:
+      email: ahmad.rizam@caam.gov.my
+      name: System Administrator
+      password: $2b$12$sANqpB.RU43mr4D1s9CcsORpcUIQfZNql1/Sd/UHyR6L4aOUlayRy
+    Rizam:
+      email: ahmad.rizam@caam.gov.my
+      name: Ahmad Rizam bin Ghazali
+      password: $2b$12$10HGKDc/2B/c16GHYi4ekecqAk.Z./2GXa.LvEuoJLmRF2biTDBcC
+    Edie:
+      email: edie@caam.gov.my
+      name: Edie bin Amir
+      password: $2b$12$aWtgnbUrw0BtQWRYex3nfuPdioitoOqjGd6S6GkNpN.FJRjuVu6Si
+cookie:
+  expiry_days: 14
+  key: a_very_secret_random_key_change_this_in_production
+  name: atc_rag_auth_cookie
+preauthorized:
+  emails: null

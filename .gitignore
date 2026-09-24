@@ -1,0 +1,12 @@
+# Python & Virtual Environment
+venv/
+__pycache__/
+
+# Secrets & IDE
+.env
+.streamlit/
+.vscode/
+
+# Local Data (We ONLY want to push the .zip file, not these folders)
+data/
+chroma_db/
