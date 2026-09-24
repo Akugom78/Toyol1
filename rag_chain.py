@@ -91,7 +91,9 @@ def stream_qwen_response(query, context, sources):
         temperature=0.2 # Low temperature for factual, deterministic answers
     )
     
-    # Yield the response chunk by chunk
+        # Yield the response chunk by chunk (safely handling empty chunks)
     for chunk in stream:
-        if chunk.choices[0].delta.content is not None:
-            yield chunk.choices[0].delta.content
+        if chunk.choices and len(chunk.choices) > 0:
+            delta = chunk.choices[0].delta
+            if hasattr(delta, 'content') and delta.content is not None:
+                yield delta.content
