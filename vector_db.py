@@ -1,9 +1,6 @@
 # vector_db.py
 import sys
 import os
-import zipfile
-import chromadb
-from chromadb.utils import embedding_functions
 
 # ==========================================
 # CRITICAL: FIX PYTHON PATH
@@ -11,6 +8,26 @@ from chromadb.utils import embedding_functions
 current_dir = os.path.dirname(os.path.abspath(__file__))
 if current_dir not in sys.path:
     sys.path.insert(0, current_dir)
+
+# ==========================================
+# FIX HUGGING FACE UNAUTHENTICATED WARNING
+# ==========================================
+# We set the token in the environment BEFORE importing chromadb or transformers
+try:
+    import streamlit as st
+    # Try to get from Streamlit secrets, fallback to local .env
+    hf_token = st.secrets.get("HUGGINGFACE_TOKEN", os.getenv("HUGGINGFACE_TOKEN", ""))
+except Exception:
+    hf_token = os.getenv("HUGGINGFACE_TOKEN", "")
+
+if hf_token:
+    os.environ["HF_TOKEN"] = hf_token
+    os.environ["HUGGINGFACE_TOKEN"] = hf_token
+# ==========================================
+
+import zipfile
+import chromadb
+from chromadb.utils import embedding_functions
 
 DB_DIR = "chroma_db"
 ZIP_FILE = "chroma_db.zip"
@@ -44,3 +61,16 @@ def get_db_stats(collection_name="atc_documents"):
         return {"count": collection.count()}
     except Exception:
         return {"count": 0}
+
+def get_unique_documents(collection_name="atc_documents"):
+    """Returns a sorted list of unique document names in the database."""
+    try:
+        collection = get_chroma_collection(collection_name)
+        results = collection.get(include=["metadatas"])
+        if not results or not results['metadatas']:
+            return []
+        
+        unique_docs = sorted(list(set(meta.get('source', 'Unknown') for meta in results['metadatas'])))
+        return unique_docs
+    except Exception:
+        return []

@@ -1,235 +1,182 @@
-import streamlit as st
-import streamlit_authenticator as stauth
-import yaml
-from yaml.loader import SafeLoader
-from dotenv import load_dotenv
-import os
+# app.py
 import sys
 import os
 
 # ==========================================
 # CRITICAL: FIX PYTHON PATH FOR STREAMLIT
 # ==========================================
-# This ensures Streamlit can always find our local modules (vector_db, rag_chain, etc.)
 current_dir = os.path.dirname(os.path.abspath(__file__))
 if current_dir not in sys.path:
     sys.path.insert(0, current_dir)
 # ==========================================
 
+# ==========================================
+# FIX HUGGING FACE UNAUTHENTICATED WARNING
+# We set the token in the environment BEFORE importing any AI libraries
+# ==========================================
 import streamlit as st
+
+try:
+    hf_token = st.secrets.get("HUGGINGFACE_TOKEN", os.getenv("HUGGINGFACE_TOKEN", ""))
+    if hf_token:
+        os.environ["HF_TOKEN"] = hf_token
+        os.environ["HUGGINGFACE_TOKEN"] = hf_token
+except Exception:
+    pass
+# ==========================================
+
 import streamlit_authenticator as stauth
 import yaml
 from yaml.loader import SafeLoader
-# ... rest of your imports
+import vector_db
+import rag_chain
 
 # ==========================================
-# 1. PAGE CONFIG & INITIAL SETUP
+# 1. LOAD CONFIGURATION & AUTHENTICATOR
 # ==========================================
-st.set_page_config(
-    page_title="ATC Data Assistant", 
-    page_icon="✈️", 
-    layout="wide",
-    initial_sidebar_state="expanded"
-)
+# FIX: We use st.session_state instead of @st.cache_resource.
+# This prevents the "widget in cache" warning AND the "DuplicateElementKey" crash.
+if 'authenticator' not in st.session_state:
+    with open('config.yaml', 'r', encoding='utf-8') as file:
+        config = yaml.load(file, Loader=SafeLoader)
+    
+    st.session_state['authenticator'] = stauth.Authenticate(
+        config['credentials'],
+        config['cookie']['name'],
+        config['cookie']['key'],
+        config['cookie']['expiry_days']
+    )
 
-# Load environment variables (API keys)
-load_dotenv()
-
-# Load authentication configuration
-# Ensure config.yaml is in the same directory as app.py
-with open('config.yaml', 'r', encoding='utf-8') as file:
-    config = yaml.load(file, Loader=SafeLoader)
+authenticator = st.session_state['authenticator']
 
 # ==========================================
-# 2. AUTHENTICATION (Updated Syntax for v0.3.x+)
+# 2. AUTHENTICATION UI
 # ==========================================
-authenticator = stauth.Authenticate(
-    config['credentials'],
-    config['cookie']['name'],
-    config['cookie']['key'],
-    config['cookie']['expiry_days']
-)
-
-# Render the login widget (no longer returns a tuple in newer versions)
 authenticator.login(location='main')
 
-# Retrieve authentication status from session state
-authentication_status = st.session_state.get('authentication_status')
-name = st.session_state.get('name')
-username = st.session_state.get('username')
-
-# ==========================================
-# 3. MAIN APPLICATION ROUTING
-# ==========================================
-if authentication_status:
-    # --- LOGGED IN STATE ---
-    authenticator.logout('Logout', 'sidebar')
+if st.session_state.get("authentication_status"):
+    name = st.session_state.get("name")
+    username = st.session_state.get("username")
     
-    # Sidebar UI
-    st.sidebar.title(f'Welcome, {name}')
-    st.sidebar.write(f'Role: {"System Administrator" if username == "admin" else "ATC Controller"}')
-    st.sidebar.markdown("---")
-    st.sidebar.info("System Status: Online\nVector DB: Ready\nQwen API: Connected")
+    # ==========================================
+    # 3. MAIN APP UI
+    # ==========================================
+    st.set_page_config(page_title="ATC Knowledge Assistant", page_icon="📘", layout="wide")
 
-    # Main App Title
-    st.title("✈️ ATC Data Assistance System")
-    st.caption("Powered by Qwen LLM & Hugging Face Embeddings")
+    # Clean UI Custom CSS
+    st.markdown("""
+    <style>
+        [data-testid="stDeployButton"] {display: none !important;}
+        .stDeployButton {display: none !important;}
+        footer {visibility: hidden !important;}
+        #MainMenu {visibility: hidden !important;}
+        .stApp {max-width: 1200px; margin: 0 auto;}
+    </style>
+    """, unsafe_allow_html=True)
 
-    # Main App Tabs
-    tab_chat, tab_docs = st.tabs(["💬 RAG Chat Assistant", "📄 Document Generator"])
+    st.title("📘 ATC Knowledge Assistant")
+    st.caption("Secure, context-aware AI assistance for ATC operations, grounded in official CAAM and ICAO documentation.")
+    st.divider()
 
-        # --- TAB 1: RAG CHAT INTERFACE ---
-    with tab_chat:
-        st.subheader("Ask questions about ATC Manuals, NOTAMs, and SOPs")
+    # --- SIDEBAR ---
+    with st.sidebar:
+        st.markdown(f"### 👤 {name}")
+        st.markdown(f"**Username:** `{username}`")
+        st.divider()
         
-        # Import the RAG chain
-        import rag_chain
+        # Bulletproof Logout Button
+        if st.button("🚪 Logout", use_container_width=True):
+            authenticator.logout('Logout', 'main')
+            # Explicitly clear the authentication status from session state
+            if "authentication_status" in st.session_state:
+                del st.session_state["authentication_status"]
+            if "name" in st.session_state:
+                del st.session_state["name"]
+            if "username" in st.session_state:
+                del st.session_state["username"]
+            st.rerun()
+            
+        st.divider()
         
-        # Initialize chat history
-        if "messages" not in st.session_state:
+        # Collapsible Manual List with Search
+        unique_docs = vector_db.get_unique_documents()
+        with st.expander(f"📚 Available Documents ({len(unique_docs)})", expanded=False):
+            doc_search = st.text_input("🔍 Search manuals:", key="doc_search", placeholder="Type name...")
+            if doc_search:
+                filtered_docs = [doc for doc in unique_docs if doc_search.lower() in doc.lower()]
+            else:
+                filtered_docs = unique_docs
+                
+            if not filtered_docs:
+                st.caption("No matching documents.")
+            else:
+                for doc in filtered_docs:
+                    st.markdown(f" {doc}")
+                    
+        st.divider()
+        if st.button("🗑️ Clear Chat History", use_container_width=True):
             st.session_state.messages = []
+            st.rerun()
 
-        # Display chat messages from history
-        for message in st.session_state.messages:
-            with st.chat_message(message["role"]):
-                st.markdown(message["content"])
-                # If it's an assistant message, show the sources it used
-                if message["role"] == "assistant" and "sources" in message:
-                    st.caption(f"📚 Sources: {', '.join(message['sources'])}")
+    # --- CHAT INITIALIZATION ---
+    # Dynamic greeting based on user name
+    dynamic_greeting = f"""Greetings, {name}! I am your Senior Air Traffic Control Professional. 
 
-        # React to user input
-        if prompt := st.chat_input("Ask about ATC procedures, equipment status, etc..."):
-            # Add user message to chat history
-            st.session_state.messages.append({"role": "user", "content": prompt})
-            with st.chat_message("user"):
-                st.markdown(prompt)
+I can assist you with:
+• **Q&A / Procedural Lookup**
+• **Document Drafting** (e.g., NOTAMs, SOPs)
+• **Regulatory Research**
+• **Document Discrepancy Analysis**
 
-            # Generate response using the RAG pipeline
-            with st.chat_message("assistant"):
-                with st.spinner("Searching ATC documents and querying Qwen..."):
-                    # 1. Retrieve context from Vector DB
-                    context, sources = rag_chain.retrieve_context(prompt)
-                    
-                    if not context.strip():
-                        response_text = "I cannot find any relevant information in the current ATC Knowledge Base. Please ensure documents are synced."
-                        st.markdown(response_text)
-                    else:
-                        # 2. Stream the response from Qwen
-                        try:
-                            response_stream = rag_chain.stream_qwen_response(prompt, context, sources)
-                            # st.write_stream handles the typing effect perfectly
-                            response_text = st.write_stream(response_stream) 
-                        except Exception as e:
-                            response_text = f"An error occurred while querying the AI: {str(e)}"
-                            st.error(response_text)
+How can I help you today?"""
+
+    if "messages" not in st.session_state:
+        st.session_state.messages = [{"role": "assistant", "content": dynamic_greeting}]
+
+    # --- DISPLAY CHAT HISTORY ---
+    for message in st.session_state.messages:
+        with st.chat_message(message["role"]):
+            st.markdown(message["content"])
+
+    # --- USER INPUT & STREAMING RESPONSE ---
+    if query := st.chat_input("Ask a procedural question, request a document draft, or analyze a regulation..."):
+        # 1. Add user message to history
+        st.session_state.messages.append({"role": "user", "content": query})
+        with st.chat_message("user"):
+            st.markdown(query)
+
+        # 2. Generate assistant response
+        with st.chat_message("assistant"):
+            message_placeholder = st.empty()
+            full_response = ""
             
-            # Add assistant response to chat history (including sources for citation)
-            st.session_state.messages.append({
-                "role": "assistant", 
-                "content": response_text,
-                "sources": sources if context.strip() else []
-            })
-
-    # --- TAB 2: DOCUMENT GENERATOR ---
-    with tab_docs:
-        st.subheader("Generate Manuals, Shift Reports, and Briefings")
-        
-        col1, col2 = st.columns([1, 2])
-        
-        with col1:
-            st.markdown("**1. Upload Source Documents**")
-            uploaded_files = st.file_uploader(
-                "Upload ATC PDFs (Manuals, NOTAMs, Logs)", 
-                type="pdf", 
-                accept_multiple_files=True
-            )
-            
-            st.markdown("**2. Select Document Type**")
-            doc_type = st.selectbox(
-                "What do you want to generate?",
-                ["Shift Handover Report", "Incident Investigation Manual", "Daily NOTAM Summary", "Custom Report"]
-            )
-            
-            generate_btn = st.button("🚀 Generate Document", type="primary", use_container_width=True)
-
-        with col2:
-            st.markdown("**3. Generated Document Preview**")
-            if generate_btn:
-                with st.spinner("Retrieving context and generating document via Qwen..."):
-                    # TODO: Replace with actual PDF generation logic
-                    file_count = len(uploaded_files) if uploaded_files else 0
-                    st.info(f"*(Placeholder)* Successfully generated a {doc_type} based on {file_count} uploaded files.")
-                    st.download_button(
-                        label="📥 Download PDF",
-                        data=b"Fake PDF data for testing",
-                        file_name=f"{doc_type.replace(' ', '_')}.pdf",
-                        mime="application/pdf"
-                    )
-            else:
-                st.warning("Upload documents and click 'Generate Document' to see the preview here.")
-
-        # --- ADMIN PANEL (Only visible to 'admin' user) ---
-    if username == 'admin':
-        st.markdown("---")
-        st.header("⚙️ Administrator Panel")
-        
-        admin_tab1, admin_tab2 = st.tabs(["👤 User Management", "📜 Current Users"])
-        
-        # Import our custom auth manager
-        import auth_manager 
-        
-        # --- TAB 1: ADD NEW USER ---
-        with admin_tab1:
-            st.subheader("Add a New ATC Controller")
-            with st.form("add_user_form", clear_on_submit=True):
-                col1, col2 = st.columns(2)
-                with col1:
-                    new_username = st.text_input("Username *", placeholder="e.g., controller2")
-                    new_name = st.text_input("Full Name *", placeholder="e.g., Ali Bin Abu")
-                with col2:
-                    new_email = st.text_input("Email *", placeholder="e.g., ali@atc.local")
-                    new_password = st.text_input("Temporary Password *", type="password")
+            try:
+                with st.spinner("🔍 Searching ATC knowledge base..."):
+                    context, sources = rag_chain.retrieve_context(query)
                 
-                submitted = st.form_submit_button("🚀 Create User", type="primary", use_container_width=True)
+                # Stream the response, passing the entire chat history
+                response_stream = rag_chain.stream_qwen_response(st.session_state.messages, context, sources)
                 
-                if submitted:
-                    if not new_username or not new_name or not new_email or not new_password:
-                        st.error("Please fill in all fields.")
-                    else:
-                        success, message = auth_manager.add_user(new_username, new_name, new_email, new_password)
-                        if success:
-                            st.success(message)
-                            st.info("⚠️ Note: The new user will need to refresh the page to log in.")
-                        else:
-                            st.error(message)
-
-        # --- TAB 2: VIEW & DELETE USERS ---
-        with admin_tab2:
-            st.subheader("Registered Users")
-            users = auth_manager.get_all_users()
-            
-            if not users:
-                st.warning("No users found.")
-            else:
-                for user in users:
-                    col_u1, col_u2, col_u3 = st.columns([2, 3, 1])
-                    col_u1.text(f"👤 {user['username']}")
-                    col_u2.text(f"{user['name']} ({user['email']})")
+                for chunk in response_stream:
+                    full_response += chunk
+                    message_placeholder.markdown(full_response + "▌")
                     
-                    # Disable delete button for the primary admin
-                    is_admin = user['username'] == 'admin'
-                    with col_u3:
-                        if st.button("🗑️ Delete", key=f"del_{user['username']}", disabled=is_admin):
-                            # We use a session state flag to handle the deletion on the next rerun
-                            st.session_state['user_to_delete'] = user['username']
-                            st.rerun()
+                message_placeholder.markdown(full_response)
+                
+                # Add source citation if context was found
+                if sources:
+                    unique_sources = list(set(sources))
+                    st.caption(f"📚 Sources: {', '.join(unique_sources)}")
+                    
+            except Exception as e:
+                error_msg = f"❌ Error querying the AI: {str(e)}"
+                message_placeholder.markdown(error_msg)
+                full_response = error_msg
 
-            # Handle deletion logic (separated to prevent UI rendering issues)
-            if 'user_to_delete' in st.session_state and st.session_state['user_to_delete']:
-                user_to_del = st.session_state.pop('user_to_delete')
-                success, msg = auth_manager.delete_user(user_to_del)
-                if success:
-                    st.toast(msg, icon="✅")
-                    st.rerun()
-                else:
-                    st.error(msg)
+        # 3. Add assistant response to history
+        st.session_state.messages.append({"role": "assistant", "content": full_response})
+
+elif st.session_state.get("authentication_status") is False:
+    st.error('❌ Username or password is incorrect. Please try again.')
+elif st.session_state.get("authentication_status") is None:
+    st.warning('🔒 Please enter your username and password to access the ATC Knowledge Assistant.')
