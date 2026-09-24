@@ -8,13 +8,17 @@ bcrypt>=4.1.2
 python-dotenv>=1.0.1
 
 # LLM and RAG Components
-openai>=1.14.0              # Qwen API is OpenAI-compatible
-chromadb>=0.4.24            # Local vector database
-sentence-transformers>=2.5.1 # Hugging Face embedding models
-pypdf>=4.1.0                # PDF text extraction
+openai>=1.14.0
+chromadb>=0.4.24
+sentence-transformers>=2.5.1
+pypdf>=4.1.0
 
 # Document Generation
-fpdf2>=2.7.8                # Pure Python PDF generation (no external system dependencies)
+fpdf2>=2.7.8
 
 # Utilities
-tiktoken>=0.6.0             # For accurate token counting and text chunking
+tiktoken>=0.6.0
+
+# Deep Learning dependencies for local embeddings (Required for Cloud)
+torch
+torchvision
