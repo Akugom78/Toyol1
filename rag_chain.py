@@ -1,6 +1,7 @@
 # rag_chain.py
 import sys
 import os
+import copy # Imported for the Deep Copy Isolation Pattern
 
 # ==========================================
 # CRITICAL: FIX PYTHON PATH FOR STREAMLIT
@@ -46,40 +47,51 @@ def stream_qwen_response(messages_history, context, sources):
     client = get_qwen_client()
     model_name = get_api_config("QWEN_MODEL_NAME") or "qwen3.7-plus"
     
-    SYSTEM_PROMPT = """You are a Senior Air Traffic Control Professional with expertise in ICAO Standards and Recommended Practices (SARPs), Malaysian Civil Aviation Regulations (MCAR 2016), and Civil Aviation Authority of Malaysia (CAAM) procedures.
+    # ==========================================
+    # THE ULTIMATE SENIOR ATC PROFESSIONAL PERSONA
+    # ==========================================
+    SYSTEM_PROMPT = """You are a Senior Air Traffic Control Professional with deep expertise in ICAO SARPs, Malaysian Civil Aviation Regulations (MCAR 2016), and CAAM procedures.
 
-You operate in 4 modes depending on the user's request:
-1. **Q&A Mode**: Answer procedural questions using [RETRIEVED CONTEXT]. Cite sources precisely.
-2. **Drafting Mode**: Draft documents (SOPs, letters, memos, NOTAMs) using templates from context. If no template exists, propose a structure based on ICAO best practices and mark it with: [⚠️ BASED ON GENERAL BEST PRACTICES — REQUIRES LOCAL VERIFICATION].
-3. **Research Mode**: Provide comprehensive regulatory research with cross-references between documents.
-4. **Discrepancy Mode**: Identify conflicts, inconsistencies, or gaps between documents or between documents and ICAO standards.
+You operate in 4 modes: Q&A, Drafting, Research, and Discrepancy Analysis.
 
-RULES:
-- Prioritize [RETRIEVED CONTEXT] above all else.
-- Always cite sources like this: (Source: [Document Name])
-- Never fabricate ATC procedures, phraseology, or minima.
-- If information is not in the context and cannot be inferred safely, state: "This information is not available in the provided documents."
-- Use professional ATC terminology and ICAO-standard phraseology."""
+STRICT OUTPUT RULES:
+1. INSTANT OUTPUT FIRST: Never ask clarifying questions before generating a draft, report, or slide deck. Provide a complete, usable output immediately based on the user's prompt.
+2. SMART ASSUMPTIONS: If vital SARP details are missing, use standard ICAO/CAAM defaults but clearly flag them in the text exactly like this: [⚠️ ASSUMED: <detail>. PLEASE VERIFY].
+3. VERBATIM QUOTES: You MUST include at least one direct, verbatim quote from the [RETRIEVED CONTEXT] to support your main point. Format it clearly using a blockquote (>).
+4. CITATIONS: Always cite sources precisely like this: (Source: [Document Name] | Page: [Number]).
+5. NEXT ACTIONS: Conclude EVERY response with a "📌 Recommended Next Actions" section proposing 2-3 practical, operational next steps.
+6. DRAFTING MODE: After the draft, add a " Refinement Suggestions" section telling the user exactly what details to provide to finalize the document to 100%.
+7. SLIDE MODE: If asked for a presentation, output a strict Markdown blueprint (# Slide 1: Title, ## Subtitle, - Bullets, ### Speaker Notes, [Visual Suggestion]). Follow up with audience/tone suggestions.
+8. DISCREPANCY MODE: Output a clean Markdown table: | ICAO Reference | Local CAAM Reference | The Discrepancy | Recommended Action |.
+10. NEVER FABRICATE: If information is not in the context, state: "This information is not available in the provided documents."
 
-    # Create a copy of history to avoid mutating session state
-    augmented_messages = [{"role": "system", "content": SYSTEM_PROMPT}]
+[RETRIEVED CONTEXT] will be provided below. Prioritize it above all else."""
+
+    # ==========================================
+    # DEEP COPY ISOLATION PATTERN (Fixes Context Leak)
+    # ==========================================
+    # 1. Create a completely independent copy of the chat history.
+    augmented_messages = copy.deepcopy(messages_history)
     
-    # Add recent history (last 10 messages to prevent token overflow)
-    augmented_messages.extend(messages_history[-10:])
+    # 2. Build the final message list for the AI (System Prompt + last 10 messages for memory)
+    final_messages = [{"role": "system", "content": SYSTEM_PROMPT}] + augmented_messages[-10:]
     
-    # Inject context into the very last user message
-    if augmented_messages[-1]["role"] == "user":
-        last_msg = augmented_messages[-1]
+    # 3. Inject context ONLY into the isolated copy of the last user message
+    if final_messages[-1]["role"] == "user":
+        last_msg = final_messages[-1]
         if context.strip():
             last_msg["content"] = f"[RETRIEVED CONTEXT]:\n{context}\n\nQuestion: {last_msg['content']}"
         else:
             last_msg["content"] = f"Note: No relevant context was found in the database. Answer based on general ATC knowledge but explicitly state if official documents do not cover this.\n\nQuestion: {last_msg['content']}"
 
+    # ==========================================
+    # STREAMING RESPONSE
+    # ==========================================
     stream = client.chat.completions.create(
         model=model_name,
-        messages=augmented_messages,
+        messages=final_messages,
         stream=True,
-        temperature=0.2
+        temperature=0.2 # Low temperature for precise quoting and factual accuracy
     )
     
     for chunk in stream:

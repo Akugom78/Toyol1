@@ -104,8 +104,18 @@ def build_and_zip_database():
             all_metadata.append({"source": pdf_file})
             all_ids.append(str(uuid.uuid4()))
             
-    print(f"✨ Adding {len(all_chunks)} chunks to database... (This may take a minute)")
-    collection.add(documents=all_chunks, metadatas=all_metadata, ids=all_ids)
+        print(f"✨ Adding {len(all_chunks)} chunks to database in batches of 500...")
+    
+    # Process in batches of 500 to avoid ChromaDB's max batch size limit
+    batch_size = 500
+    for i in range(0, len(all_chunks), batch_size):
+        collection.add(
+            documents=all_chunks[i:i + batch_size],
+            metadatas=all_metadata[i:i + batch_size],
+            ids=all_ids[i:i + batch_size]
+        )
+        print(f"  -> Processed {min(i + batch_size, len(all_chunks))} / {len(all_chunks)} chunks")
+        
     print("✅ Database built successfully!")
     
     # 5. Zip the database
