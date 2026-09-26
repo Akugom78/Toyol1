@@ -33,14 +33,13 @@ credentials:
       name: Mohd Rizal Bin Mohamad Salleh
       password: "$2b$12$ca3VpZ730.kOscVcVCKVsO3iGzaEAeWe9V7cee.CiweMRVc.IBUtu"
     Pudin:
-      email: -
+      email: non
       name: Mohd Afifuddin Hilmi Bin Zuraki
       password: "$2b$12$EGmw2tp1WCNX1GvqhtLcTudsQa9j5JGa4E9VognIrtMRfaUGYkS3W"
     Siwa:
       email: siwa@caam.gov.my
       name: Siwa A/L Mathaban
-      password: "$2b$12$.5aGRpbk2vNNJ.eSIQe0xOtVMxaayKGX45LWOGfQCY11Na8zNvZW6"  
-      
+      password: "$2b$12$.5aGRpbk2vNNJ.eSIQe0xOtVMxaayKGX45LWOGfQCY11Na8zNvZW6"
 cookie:
   expiry_days: 14
   key: a_very_secret_random_key_change_this_in_production
