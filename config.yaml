@@ -33,9 +33,9 @@ credentials:
       name: Mohd Rizal Bin Mohamad Salleh
       password: "$2b$12$ca3VpZ730.kOscVcVCKVsO3iGzaEAeWe9V7cee.CiweMRVc.IBUtu"
     Pudin:
-      email: afifuddin.zuraki@caam.gov.my
+      email: -
       name: Mohd Afifuddin Hilmi Bin Zuraki
-      password: "$2b$12$TeHKkSRKJB5Q0Zypix7b0uImif7GrILyl03jeN9qYZ/KfCIBo4YY"
+      password: "$2b$12$EGmw2tp1WCNX1GvqhtLcTudsQa9j5JGa4E9VognIrtMRfaUGYkS3W"
     Siwa:
       email: siwa@caam.gov.my
       name: Siwa A/L Mathaban
