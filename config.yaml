@@ -40,6 +40,22 @@ credentials:
       email: siwa@caam.gov.my
       name: Siwa A/L Mathaban
       password: "$2b$12$.5aGRpbk2vNNJ.eSIQe0xOtVMxaayKGX45LWOGfQCY11Na8zNvZW6"
+    Syaiful:
+      email: none
+      name: Mohd Syaiful Akhwan Bin Arman
+      password: "$2b$12$q3Ns7JbF1ZFrJKdkDbjA9.z7qM8d5Km/3Qfb8Ho4dUxS3G3HJZudK"
+    Ashaadi:
+      email: none
+      name: Ashaadi Fandzuri Bin Adnan
+      password: "$2b$12$EKgqI3mTDbHmq.ddqP.czeqlfl1RZBYlQCjRWjDTHEd8MKs7AKO.q"
+    Siddiq:
+      email: none
+      name: Siddiq Bin Abdul Halim
+      password: "$2b$12$4ObS8/Azj.sz6GMA0g.vgOf1PZrMiO46jceGPeBpp4asC9leB0VpW"
+    Raja:
+      email: none
+      name: Raja Norherfik Huzain Bin Raja Ramli
+      password: "$2b$12$81rpG/VVvkrWq3y1QFrJp.FHZiA80jo4rke40xrimdkUZcRaQY9.G"
 cookie:
   expiry_days: 14
   key: a_very_secret_random_key_change_this_in_production
