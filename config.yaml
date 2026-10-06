@@ -52,6 +52,14 @@ credentials:
       email: none
       name: Siddiq Bin Abdul Halim
       password: "$2b$12$4ObS8/Azj.sz6GMA0g.vgOf1PZrMiO46jceGPeBpp4asC9leB0VpW"
+    Nurul:
+      email: none
+      name: Nurul Wahidah
+      password: "$2b$12$TjqtaGNTqN1CquwmECnti.K7DtarRZx0uxESphizHPBOKYpxmnX/G"
+    Joyce:
+      email: none
+      name: Joyce binti Junaidi
+      password: $2b$12$qyo6VV82rOY7bAf5u7AKluhZQUs/5ED8b0IzqFm6FG1MYyPlzcuNC
     Raja:
       email: none
       name: Raja Norherfik Huzain Bin Raja Ramli
