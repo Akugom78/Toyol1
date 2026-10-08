@@ -22,3 +22,10 @@ tiktoken>=0.6.0
 # Deep Learning dependencies for local embeddings (Required for Cloud)
 torch
 torchvision
+
+streamlit
+streamlit-authenticator
+openai
+chromadb
+sentence-transformers
+PyMuPDF

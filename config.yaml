@@ -59,7 +59,15 @@ credentials:
     Joyce:
       email: none
       name: Joyce binti Junaidi
-      password: $2b$12$qyo6VV82rOY7bAf5u7AKluhZQUs/5ED8b0IzqFm6FG1MYyPlzcuNC
+      password: "$2b$12$qyo6VV82rOY7bAf5u7AKluhZQUs/5ED8b0IzqFm6FG1MYyPlzcuNC"
+    Ilzam:
+      email: none
+      name: Ilzam Azri Bin Abu Bakar
+      password: "$2b$12$w1ktH8bGn2L7X8x/ovjEh.Q89ND1R0uqJ/eHwksQ02g3/xMYkPV8K"
+    Darnalis:
+      email: none
+      name: Mohd.Darnalis Bin Ibrahim
+      password: "$2b$12$60O081OLRGNzawqbe/rBR.RY7FgT0L6XUwLZROow7ZL7XNoXnrZda"
     Raja:
       email: none
       name: Raja Norherfik Huzain Bin Raja Ramli

@@ -1,7 +1,7 @@
 # rag_chain.py
 import sys
 import os
-import copy # Imported for the Deep Copy Isolation Pattern
+import copy 
 
 # ==========================================
 # CRITICAL: FIX PYTHON PATH FOR STREAMLIT
@@ -43,16 +43,14 @@ def retrieve_context(query, top_k=5):
                 
     return "\n\n---\n\n".join(context_chunks), sources
 
-def stream_qwen_response(messages_history, context, sources):
+# FIX: Added uploaded_doc_text=None as the 4th argument
+def stream_qwen_response(messages_history, context, sources, uploaded_doc_text=None):
     client = get_qwen_client()
     model_name = get_api_config("QWEN_MODEL_NAME") or "qwen3.7-plus"
     
-    # ==========================================
-    # THE REAL-WORLD SENIOR ATC PROFESSIONAL PERSONA (v8 - SOI 17/2026 Aligned)
-    # ==========================================
-    SYSTEM_PROMPT = """You are a Senior Air Traffic Control Professional with deep expertise in ICAO SARPs, Malaysian Civil Aviation Regulations (MCAR 2016), CAAM procedures (including ANSM 4 and SOI 17/2026), and Eurocontrol best practices.
+    SYSTEM_PROMPT = """You are a Senior Air Traffic Control Professional and Safety Auditor with deep expertise in ICAO SARPs, Malaysian Civil Aviation Regulations (MCAR 2016), CAAM procedures (including ANSM 4 and SOI 17/2026), and Eurocontrol best practices.
 
-You operate in 4 modes: Q&A, Drafting, Research, and Discrepancy Analysis.
+You operate in 4 modes: Q&A, Drafting, Research, and Discrepancy Analysis. You also have an AUDITOR MODE for reviewing uploaded documents.
 
 FLEXIBLE INPUT INTERPRETATION:
 - Users may use local jargon, informal terms (e.g., "IMC condition", "UOI"), typos, or verbal shorthand. 
@@ -76,7 +74,7 @@ STRICT OUTPUT STRUCTURE (Adapt based on User Intent):
 1. INSTANT FIRST DRAFT: Generate a complete, professionally structured draft immediately. Do not ask clarifying questions first.
 2. SRA & HIRA MANDATORY TABLE: If drafting a Safety Risk Assessment (SRA) Report or HIRA Corresponding Log, you MUST format the 'Hazard Identification and Risk Evaluation' section as a strict Markdown table matching CAAM SOI 17/2026 Appendix 3. Use these EXACT columns: 
    | No. | Generic Hazard | Specific Component | Description of Risk | Current Measure(s) | Initial Risk (L, C, V) | Mitigating Measure(s) | Residual Risk (L, C, V) | Remarks/Timeline | Responsible Officer/Unit |
-   *(Note: L=Likelihood, C=Consequence/Severity, V=Verdict [A=Acceptable, R=Review, U=Unacceptable]). For other documents like standard UOI reports, NOTAMs, or SOPs, use their appropriate standard formats without forcing this specific table.*
+   *(Note: L=Likelihood, C=Consequence/Severity, V=Verdict [A=Acceptable, R=Review, U=Unacceptable]). For other documents, use their appropriate standard formats.*
 3. CREATIVE IDEATION WITH GUARDRAILS: Be proactive in suggesting structural improvements or standard phrasings. 
    - GUARDRAIL: NEVER fabricate specific operational data (frequencies, coordinates, minima, exact times). 
    - If vital details are missing, flag them clearly: `[⚠️ ASSUMED: <detail>. PLEASE VERIFY]`.
@@ -88,31 +86,46 @@ STRICT OUTPUT STRUCTURE (Adapt based on User Intent):
 - Output a strict Markdown blueprint (# Slide 1: Title, ## Subtitle, - Bullets, ### Speaker Notes, [Visual Suggestion]).
 - Follow up with audience-specific tone suggestions.
 
+[AUDITOR MODE: TRIGGERED WHEN [UPLOADED DOCUMENT] IS PROVIDED]
+If the user provides an [UPLOADED DOCUMENT] for review, you MUST switch to Auditor Mode and output EXACTLY these 3 parts:
+1. ### 📋 AUDIT REPORT (CHECK & SUGGEST)
+   - Compare the uploaded draft against the [RETRIEVED CONTEXT] (Official Standards like SOI 17/2026).
+   - Output a compliance checklist using ✅ (Compliant), ️ (Needs Improvement), and ❌ (Non-Compliant/Missing).
+   - Include verbatim quotes from the official standard to justify your findings.
+2. ### 📝 TRACK CHANGES (CORRECTIONS)
+   - Provide specific, actionable corrections.
+   - Format: "In [Section], you wrote '[Original Text]'. The official [Standard] requires '[Correct Text]'."
+3. ### 📄 CORRECTED DRAFT (FINAL VERSION)
+   - Generate the fully rewritten, compliant version of the document.
+   - Ensure strict adherence to official templates (e.g., SOI 17/2026 for SRA/HIRA).
+   - Use Markdown tables where required (e.g., HIRA Log).
+
 NEVER FABRICATE: If information is not in the context or standard regulations, state clearly: "This information is not available in the provided documents or standard ICAO/Eurocontrol references."
 
 [RETRIEVED CONTEXT] will be provided below. Prioritize it above all else."""
 
-    # ==========================================
-    # DEEP COPY ISOLATION PATTERN (Fixes Context Leak)
-    # ==========================================
     augmented_messages = copy.deepcopy(messages_history)
     final_messages = [{"role": "system", "content": SYSTEM_PROMPT}] + augmented_messages[-10:]
     
     if final_messages[-1]["role"] == "user":
         last_msg = final_messages[-1]
+        
+        context_block = ""
         if context.strip():
-            last_msg["content"] = f"[RETRIEVED CONTEXT]:\n{context}\n\nQuestion: {last_msg['content']}"
+            context_block += f"[RETRIEVED CONTEXT]:\n{context}\n\n"
         else:
-            last_msg["content"] = f"Note: No relevant context was found in the database. Answer based on general ATC knowledge but explicitly state if official documents do not cover this.\n\nQuestion: {last_msg['content']}"
+            context_block += "Note: No relevant context was found in the database. Answer based on general ATC knowledge but explicitly state if official documents do not cover this.\n\n"
+            
+        if uploaded_doc_text:
+            context_block += f"[UPLOADED DOCUMENT FOR AUDIT]:\n{uploaded_doc_text}\n\n"
+            
+        last_msg["content"] = f"{context_block}Question: {last_msg['content']}"
 
-    # ==========================================
-    # STREAMING RESPONSE
-    # ==========================================
     stream = client.chat.completions.create(
         model=model_name,
         messages=final_messages,
         stream=True,
-        temperature=0.3 # Sweet spot: factual enough for exact quotes and tables, flexible enough for creative drafting
+        temperature=0.3
     )
     
     for chunk in stream:
