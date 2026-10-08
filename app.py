@@ -1,8 +1,6 @@
 # app.py
 import sys
 import os
-import json
-import re
 
 # ==========================================
 # CRITICAL: FIX PYTHON PATH FOR STREAMLIT
@@ -31,47 +29,6 @@ import yaml
 from yaml.loader import SafeLoader
 import vector_db
 import rag_chain
-
-# ==========================================
-# COPY BUTTON HELPER FUNCTIONS
-# ==========================================
-def create_copy_button(text_to_copy, button_label="📋 Copy"):
-    """Generates an HTML button with JS to copy text to clipboard."""
-    safe_text = json.dumps(text_to_copy)[1:-1] 
-    
-    html = f"""
-    <button style="font-size: 0.8em; padding: 4px 8px; border-radius: 4px; border: 1px solid #d1d5db; background-color: #f9fafb; color: #374151; cursor: pointer; margin: 5px 0; transition: all 0.2s;"
-            onmouseover="this.style.backgroundColor='#e5e7eb'" onmouseout="this.style.backgroundColor='#f9fafb'"
-            onclick="navigator.clipboard.writeText('{safe_text}').then(() => {{ let btn = this; btn.innerText = '✅ Copied!'; btn.style.backgroundColor = '#d1fae5'; btn.style.borderColor = '#10b981'; setTimeout(() => {{ btn.innerText = '{button_label}'; btn.style.backgroundColor = '#f9fafb'; btn.style.borderColor = '#d1d5db'; }}, 2000); }})">
-        {button_label}
-    </button>
-    """
-    return html
-
-def inject_quote_copy_buttons(text):
-    """Finds markdown blockquotes and injects a copy button after each one."""
-    pattern = r'(>\s*\*.*?\*\s*\n\(Source:.*?\))'
-    def replacer(match):
-        quote_text = match.group(1)
-        button_html = create_copy_button(quote_text, "📋 Copy Quote")
-        return f"{quote_text}\n\n{button_html}"
-    return re.sub(pattern, replacer, text, flags=re.DOTALL)
-
-def extract_all_quotes(text):
-    """Extracts all blockquotes into a single string."""
-    pattern = r'(>\s*\*.*?\*\s*\n\(Source:.*?\))'
-    quotes = re.findall(pattern, text, flags=re.DOTALL)
-    return "\n\n---\n\n".join(quotes) if quotes else ""
-
-def extract_corrected_draft(text):
-    """Extracts the text after the Corrected Draft header."""
-    match = re.search(r'### 📄 CORRECTED DRAFT.*?\n(.*?)(?=### |\Z)', text, flags=re.DOTALL | re.IGNORECASE)
-    return match.group(1).strip() if match else text
-
-def extract_audit_and_track_changes(text):
-    """Extracts text up to the Corrected Draft header."""
-    match = re.search(r'(.*?)(?=### 📄 CORRECTED DRAFT)', text, flags=re.DOTALL | re.IGNORECASE)
-    return match.group(1).strip() if match else ""
 
 # ==========================================
 # 1. LOAD CONFIGURATION & AUTHENTICATOR
@@ -119,7 +76,7 @@ if st.session_state.get("authentication_status"):
 
     # --- SIDEBAR ---
     with st.sidebar:
-        st.markdown(f"### 👤 {name}")
+        st.markdown(f"###  {name}")
         st.markdown(f"**Username:** `{username}`")
         st.divider()
         
@@ -144,7 +101,7 @@ if st.session_state.get("authentication_status"):
                 st.caption("No matching documents.")
             else:
                 for doc in filtered_docs:
-                    st.markdown(f"📄 {doc}")
+                    st.markdown(f" {doc}")
                     
         st.divider()
         if st.button("🗑️ Clear Chat History", use_container_width=True):
@@ -152,7 +109,6 @@ if st.session_state.get("authentication_status"):
             st.rerun()
 
     # --- CHAT INITIALIZATION ---
-    # PROFESSIONAL OVERVIEW GREETING
     dynamic_greeting = f"""Greetings, {name}! I am your Senior Air Traffic Control Professional and Safety Auditor. 
 
 I am ready to assist you with:
@@ -169,14 +125,10 @@ How may I assist your operations today?"""
     # --- DISPLAY CHAT HISTORY ---
     for message in st.session_state.messages:
         with st.chat_message(message["role"]):
-            if message["role"] == "assistant":
-                processed_text = inject_quote_copy_buttons(message["content"])
-                st.markdown(processed_text, unsafe_allow_html=True)
-            else:
-                st.markdown(message["content"])
+            st.markdown(message["content"])
 
     # --- FILE UPLOADER (AUDITOR MODE) ---
-    uploaded_file = st.file_uploader("📎 Attach a document for audit/review (PDF only)", type=["pdf"], key="doc_uploader")
+    uploaded_file = st.file_uploader(" Attach a document for audit/review (PDF only)", type=["pdf"], key="doc_uploader")
     
     if uploaded_file is not None:
         st.session_state['uploaded_file'] = uploaded_file
@@ -220,24 +172,7 @@ How may I assist your operations today?"""
                     
                 message_placeholder.markdown(full_response)
                 
-                # 3. Add Smart Copy Buttons
-                st.divider()
-                st.markdown(create_copy_button(full_response, "📋 Copy Full Response"), unsafe_allow_html=True)
-                
-                # Check if it's an Auditor Mode response (has 3 parts)
-                if "### 📄 CORRECTED DRAFT" in full_response.upper() or "###  CORRECTED DRAFT (FINAL VERSION)" in full_response.upper():
-                    corrected_draft = extract_corrected_draft(full_response)
-                    audit_track = extract_audit_and_track_changes(full_response)
-                    
-                    if corrected_draft:
-                        st.markdown(create_copy_button(corrected_draft, "📄 Copy Corrected Draft Only"), unsafe_allow_html=True)
-                    if audit_track:
-                        st.markdown(create_copy_button(audit_track, "📝 Copy Audit & Track Changes"), unsafe_allow_html=True)
-                
-                all_quotes = extract_all_quotes(full_response)
-                if all_quotes:
-                    st.markdown(create_copy_button(all_quotes, "📋 Copy All Quotes"), unsafe_allow_html=True)
-                    
+                # Display Sources
                 if sources:
                     unique_sources = list(set(sources))
                     st.caption(f"📚 Sources: {', '.join(unique_sources)}")
@@ -247,10 +182,10 @@ How may I assist your operations today?"""
                 message_placeholder.markdown(error_msg)
                 full_response = error_msg
 
-        # 4. Add assistant response to history
+        # 3. Add assistant response to history
         st.session_state.messages.append({"role": "assistant", "content": full_response})
 
 elif st.session_state.get("authentication_status") is False:
-    st.error('❌ Username or password is incorrect. Please try again.')
+    st.error(' Username or password is incorrect. Please try again.')
 elif st.session_state.get("authentication_status") is None:
     st.warning('🔒 Please enter your username and password to access the ATC Knowledge Assistant.')
