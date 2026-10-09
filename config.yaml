@@ -68,6 +68,14 @@ credentials:
       email: none
       name: Mohd.Darnalis Bin Ibrahim
       password: "$2b$12$60O081OLRGNzawqbe/rBR.RY7FgT0L6XUwLZROow7ZL7XNoXnrZda"
+    Apit:
+      email: none
+      name: Apit
+      password: "$2b$12$C6KirvIjz9U7IAwKIwAwb.EKz6RVKljdoOrvkXhJ25WgzGuy4ezLC"
+    Osman:
+      email: none
+      name: Osman Bin Md Salleh
+      password: "$2b$12$HDiXzheiCMRhFyeCgWnIGeH/pZafoI9nkRmfFqvujZZare9Nr.5.u"
     Raja:
       email: none
       name: Raja Norherfik Huzain Bin Raja Ramli
