@@ -17,9 +17,9 @@ COLLECTION_NAME = "atc_knowledge"
 def initialize_database():
     """Checks if the DB folder exists. If not, extracts it from the ZIP file."""
     if not os.path.exists(DB_PATH):
-        print(f"️ [DEBUG] Database folder not found at {DB_PATH}.")
+        print(f"⚠️ [DEBUG] Database folder not found at {DB_PATH}.")
         if os.path.exists(DB_ZIP):
-            print(f"️ [DEBUG] Found {DB_ZIP}. Extracting database...")
+            print(f"🗜️ [DEBUG] Found {DB_ZIP}. Extracting database...")
             try:
                 with zipfile.ZipFile(DB_ZIP, 'r') as zip_ref:
                     zip_ref.extractall(current_dir)
@@ -45,15 +45,14 @@ def get_unique_documents():
     try:
         collection = get_chroma_collection()
         total_docs = collection.count()
-        print(f" [DEBUG] Total documents in DB: {total_docs}")
+        print(f" [DEBUG] Total chunks in DB: {total_docs}")
         
         if total_docs == 0:
             return []
 
-        # FIX: Fetch only a limited number of metadatas to prevent memory crashes on Streamlit Cloud
-        # 2000 is enough to get all unique filenames without crashing the server
-        print(f" [DEBUG] Fetching metadatas (limit 2000)...")
-        results = collection.get(include=['metadatas'], limit=2000)
+        # FIX: Removed the 'limit=2000' so it reads ALL chunks and finds all 131 files!
+        print(f"🔍 [DEBUG] Fetching all metadatas...")
+        results = collection.get(include=['metadatas'])
         metadatas = results['metadatas']
         
         unique_sources = set()
