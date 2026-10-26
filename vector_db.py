@@ -3,6 +3,7 @@ import os
 import chromadb
 import zipfile
 import shutil
+import streamlit as st
 
 # ==========================================
 # CONFIGURATION
@@ -13,19 +14,23 @@ DB_ZIP = os.path.join(current_dir, "chroma_db.zip")
 COLLECTION_NAME = "atc_knowledge"
 
 # ==========================================
-# AUTO-HEAL & DIAGNOSTIC LOGIC
+# AUTO-HEAL & UI DIAGNOSTIC LOGIC
 # ==========================================
 def initialize_database():
-    """Ensures the database is extracted and populated."""
+    """Ensures the database is extracted and populated. Shows errors in UI."""
     
     # 1. Check ZIP file size to confirm LFS worked
     if os.path.exists(DB_ZIP):
         zip_size = os.path.getsize(DB_ZIP)
-        print(f"📦 [DEBUG] chroma_db.zip size: {zip_size} bytes")
-        if zip_size < 1000000: # Less than 1MB
-            print(f"❌ [DEBUG] WARNING: ZIP file is too small! Git LFS likely failed to upload the real file.")
+        print(f" [DEBUG] chroma_db.zip size: {zip_size} bytes")
+        
+        # If it's less than 1MB, it's an LFS pointer file, not the real database!
+        if zip_size < 1000000: 
+            st.sidebar.error(f" CRITICAL LFS ERROR: ZIP is only {zip_size} bytes! Git LFS failed to upload the real file.")
+            return False
     else:
-        print(f"❌ [DEBUG] chroma_db.zip not found!")
+        st.sidebar.error("🚨 CRITICAL: chroma_db.zip not found in repository!")
+        return False
 
     # 2. Extract if folder is missing or empty
     if not os.path.exists(DB_PATH) or not os.listdir(DB_PATH):
@@ -33,21 +38,24 @@ def initialize_database():
         if os.path.exists(DB_PATH):
             shutil.rmtree(DB_PATH)
             
-        if os.path.exists(DB_ZIP):
-            try:
-                with zipfile.ZipFile(DB_ZIP, 'r') as zip_ref:
-                    zip_ref.extractall(current_dir)
-                print("✅ [DEBUG] Extraction successful!")
-            except Exception as e:
-                print(f"❌ [DEBUG] Failed to extract ZIP: {e}")
+        try:
+            with zipfile.ZipFile(DB_ZIP, 'r') as zip_ref:
+                zip_ref.extractall(current_dir)
+            print("✅ [DEBUG] Extraction successful!")
+        except Exception as e:
+            st.sidebar.error(f"🚨 EXTRACTION FAILED: {e}")
+            return False
                 
-    # 3. DIAGNOSTIC: List files inside the extracted folder
-    if os.path.exists(DB_PATH):
-        print(f"📂 [DEBUG] Contents of '{DB_PATH}':")
-        for item in os.listdir(DB_PATH):
-            print(f"   - {item}")
+    # 3. Re-initialize and check count
+    client = chromadb.PersistentClient(path=DB_PATH)
+    collection = client.get_or_create_collection(name=COLLECTION_NAME)
+    
+    if collection.count() == 0:
+        st.sidebar.error("🚨 DATABASE EMPTY: Extracted successfully, but contains 0 chunks. Check build script.")
+        return False
     else:
-        print(f"❌ [DEBUG] Extraction failed, folder still missing.")
+        print(f"✅ [DEBUG] Database loaded with {collection.count()} chunks.")
+        return True
 
 # ==========================================
 # CORE FUNCTIONS
@@ -63,7 +71,6 @@ def get_unique_documents():
     try:
         collection = get_chroma_collection()
         total_docs = collection.count()
-        print(f"📊 [DEBUG] Total chunks in DB: {total_docs}")
         
         if total_docs == 0:
             return []
@@ -77,7 +84,6 @@ def get_unique_documents():
                 unique_sources.add(meta['source'])
                 
         sorted_sources = sorted(list(unique_sources))
-        print(f"✅ [DEBUG] Found {len(sorted_sources)} unique documents.")
         return sorted_sources
         
     except Exception as e:
