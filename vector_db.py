@@ -22,9 +22,8 @@ def initialize_database():
     # 1. Check ZIP file size to confirm LFS worked
     if os.path.exists(DB_ZIP):
         zip_size = os.path.getsize(DB_ZIP)
-        print(f" [DEBUG] chroma_db.zip size: {zip_size} bytes")
+        print(f"📦 [DEBUG] chroma_db.zip size: {zip_size} bytes")
         
-        # If it's less than 1MB, it's an LFS pointer file, not the real database!
         if zip_size < 1000000: 
             st.sidebar.error(f" CRITICAL LFS ERROR: ZIP is only {zip_size} bytes! Git LFS failed to upload the real file.")
             return False
@@ -38,10 +37,17 @@ def initialize_database():
         if os.path.exists(DB_PATH):
             shutil.rmtree(DB_PATH)
             
+        # FIX: Create the target folder first!
+        os.makedirs(DB_PATH, exist_ok=True)
+            
         try:
             with zipfile.ZipFile(DB_ZIP, 'r') as zip_ref:
-                zip_ref.extractall(current_dir)
-            print("✅ [DEBUG] Extraction successful!")
+                # FIX: Extract DIRECTLY into the chroma_db folder!
+                zip_ref.extractall(DB_PATH)
+            print(f"✅ [DEBUG] Extraction successful into {DB_PATH}!")
+            
+            # Debug: List what we just extracted to confirm
+            print(f"📂 [DEBUG] Extracted files: {os.listdir(DB_PATH)}")
         except Exception as e:
             st.sidebar.error(f"🚨 EXTRACTION FAILED: {e}")
             return False
@@ -51,7 +57,7 @@ def initialize_database():
     collection = client.get_or_create_collection(name=COLLECTION_NAME)
     
     if collection.count() == 0:
-        st.sidebar.error("🚨 DATABASE EMPTY: Extracted successfully, but contains 0 chunks. Check build script.")
+        st.sidebar.error(" DATABASE EMPTY: Extracted successfully, but contains 0 chunks. Check build script.")
         return False
     else:
         print(f"✅ [DEBUG] Database loaded with {collection.count()} chunks.")
