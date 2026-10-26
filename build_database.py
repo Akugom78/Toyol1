@@ -3,7 +3,7 @@ import os
 import chromadb
 import hashlib
 import pymupdf 
-import shutil # Added for robust zipping
+import shutil
 
 # ==========================================
 # CONFIGURATION
@@ -15,15 +15,12 @@ CHUNK_SIZE = 1000
 CHUNK_OVERLAP = 200
 
 # ==========================================
-# EXTRACTION FUNCTIONS
+# EXTRACTION & CHUNKING
 # ==========================================
 def extract_text_from_pdf(pdf_path):
     try:
         doc = pymupdf.open(pdf_path)
-        text = ""
-        for page in doc:
-            text += page.get_text()
-        return text.strip()
+        return "".join(page.get_text() for page in doc).strip()
     except Exception as e:
         print(f"   ❌ Error reading PDF: {e}")
         return ""
@@ -36,17 +33,13 @@ def extract_text_from_md(md_path):
         print(f"   ❌ Error reading MD: {e}")
         return ""
 
-# ==========================================
-# CHUNKING LOGIC
-# ==========================================
 def chunk_text(text, source, chunk_size=CHUNK_SIZE, chunk_overlap=CHUNK_OVERLAP):
     chunks = []
     start = 0
     while start < len(text):
         end = start + chunk_size
-        chunk = text[start:end]
         chunks.append({
-            "text": chunk,
+            "text": text[start:end],
             "source": source,
             "chunk_id": hashlib.md5(f"{source}_{start}".encode()).hexdigest()
         })
@@ -57,23 +50,20 @@ def chunk_text(text, source, chunk_size=CHUNK_SIZE, chunk_overlap=CHUNK_OVERLAP)
 # MAIN BUILD PROCESS
 # ==========================================
 def build_database():
-    # 1. Clear existing DB
     if os.path.exists(DB_FOLDER):
         shutil.rmtree(DB_FOLDER)
     
     client = chromadb.PersistentClient(path=DB_FOLDER)
     collection = client.get_or_create_collection(name="atc_knowledge")
-    
     all_chunks = []
-    files_processed = 0
     
     if not os.path.exists(RAW_FOLDER):
         print(f"❌ Error: Folder '{RAW_FOLDER}' not found.")
         return
         
     print(f"🔍 Scanning '{RAW_FOLDER}'...")
+    files_processed = 0
     
-    # 2. Process files
     for root, dirs, files in os.walk(RAW_FOLDER):
         for filename in files:
             filepath = os.path.join(root, filename)
@@ -82,36 +72,41 @@ def build_database():
                 text = extract_text_from_pdf(filepath)
             elif filename.lower().endswith(".md"):
                 text = extract_text_from_md(filepath)
-            else:
-                continue
                 
             if text:
-                chunks = chunk_text(text, filename)
-                all_chunks.extend(chunks)
+                all_chunks.extend(chunk_text(text, filename))
                 files_processed += 1
                 
-    print(f" Processed {files_processed} files. Total chunks: {len(all_chunks)}")
+    print(f"✅ Processed {files_processed} files. Total chunks: {len(all_chunks)}")
         
-    # 3. Add to ChromaDB
     if all_chunks:
         print(f"✨ Adding chunks to database...")
-        batch_size = 500
-        for i in range(0, len(all_chunks), batch_size):
-            batch = all_chunks[i:i + batch_size]
+        for i in range(0, len(all_chunks), 500):
+            batch = all_chunks[i:i + 500]
             collection.add(
                 documents=[c["text"] for c in batch],
                 metadatas=[{"source": c["source"]} for c in batch],
                 ids=[c["chunk_id"] for c in batch]
             )
-            
-    # 4. Create ZIP using shutil (Bulletproof method)
-    print("🗜️ Creating ZIP archive...")
-    if os.path.exists(f"{DB_ZIP}.zip"):
-        os.remove(f"{DB_ZIP}.zip")
+
+    # ==========================================
+    # BULLETPROOF ZIP CREATION
+    # ==========================================
+    zip_path = f"{DB_ZIP}.zip"
+    if os.path.exists(zip_path):
+        os.remove(zip_path)
         
-    # This creates a perfect ZIP where the root is the chroma_db folder
-    shutil.make_archive(DB_ZIP, 'zip', DB_FOLDER)
-    print(f"✅ SUCCESS! {DB_ZIP}.zip is ready.")
+    print("🗜️ Creating ZIP archive with 'chroma_db' as root folder...")
+    
+    # This ensures the ZIP contains: chroma_db/chroma.sqlite3 (not just chroma.sqlite3 at root)
+    shutil.make_archive(
+        DB_ZIP,
+        'zip',
+        root_dir=os.path.dirname(os.path.abspath(__file__)),
+        base_dir=DB_FOLDER
+    )
+    
+    print(f"✅ SUCCESS! {zip_path} is ready.")
 
 if __name__ == "__main__":
     build_database()
