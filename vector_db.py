@@ -1,5 +1,6 @@
 # vector_db.py
 import os
+import glob
 import chromadb
 import zipfile
 import shutil
@@ -14,10 +15,10 @@ DB_ZIP = os.path.join(current_dir, "chroma_db.zip")
 COLLECTION_NAME = "atc_knowledge"
 
 # ==========================================
-# BULLETPROOF AUTO-HEAL LOGIC
+# SMART HUNTER EXTRACTION LOGIC
 # ==========================================
 def initialize_database():
-    """Extracts and fixes the database regardless of nested folders."""
+    """Extracts the ZIP and hunts for the database files regardless of folder structure."""
     
     # 1. Check ZIP file
     if not os.path.exists(DB_ZIP):
@@ -29,7 +30,7 @@ def initialize_database():
         st.sidebar.error(f"🚨 LFS ERROR: ZIP is only {zip_size} bytes! Git LFS failed.")
         return False
 
-    # 2. Check if current DB is healthy
+    # 2. Check if current DB is already healthy
     if os.path.exists(DB_PATH):
         try:
             client = chromadb.PersistentClient(path=DB_PATH)
@@ -40,47 +41,46 @@ def initialize_database():
         except Exception:
             pass # Corrupted, needs rebuild
 
-    print(f"⚠️ [DEBUG] Database missing, empty, or corrupted. Rebuilding from ZIP...")
+    print(f"⚠️ [DEBUG] Database missing, empty, or corrupted. Hunting for DB files in ZIP...")
 
-    # 3. Extract to a temporary folder to avoid nested folder issues
-    temp_extract = os.path.join(current_dir, "temp_extract")
-    if os.path.exists(temp_extract):
-        shutil.rmtree(temp_extract)
-    os.makedirs(temp_extract)
-
+    # 3. Extract to a temporary folder
+    temp_dir = os.path.join(current_dir, "temp_db_extract")
+    if os.path.exists(temp_dir):
+        shutil.rmtree(temp_dir)
+    
     try:
         with zipfile.ZipFile(DB_ZIP, 'r') as zip_ref:
-            zip_ref.extractall(temp_extract)
-        print(f"✅ [DEBUG] Extracted to temp folder.")
+            zip_ref.extractall(temp_dir)
+        print(f"✅ [DEBUG] ZIP extracted to temp folder.")
     except Exception as e:
-        st.sidebar.error(f"🚨 EXTRACTION FAILED: {e}")
+        st.sidebar.error(f"🚨 ZIP EXTRACTION FAILED: {e}")
         return False
 
-    # 4. Hunt for the actual database folder (handles nested folders)
-    source_db_path = None
+    # 4. HUNT for the .sqlite3 file anywhere in the extracted folder
+    sqlite_files = glob.glob(os.path.join(temp_dir, "**/*.sqlite3"), recursive=True)
     
-    # Check if it extracted directly into temp_extract
-    if os.path.exists(os.path.join(temp_extract, "chroma.sqlite3")):
-        source_db_path = temp_extract
-    else:
-        # Walk through to find chroma.sqlite3
-        for root, dirs, files in os.walk(temp_extract):
-            if "chroma.sqlite3" in files:
-                source_db_path = root
-                break
-
-    if not source_db_path:
-        st.sidebar.error("🚨 Could not find chroma.sqlite3 in ZIP!")
+    if not sqlite_files:
+        st.sidebar.error("🚨 Could not find ANY .sqlite3 database file inside the ZIP!")
         return False
 
-    # 5. Move to final destination
+    # 5. Move the found database files to the final destination
+    db_root_folder = os.path.dirname(sqlite_files[0])
+    print(f"🎯 [DEBUG] Found database files in: {db_root_folder}")
+
+    # Clean up destination and create fresh
     if os.path.exists(DB_PATH):
         shutil.rmtree(DB_PATH)
+    os.makedirs(DB_PATH, exist_ok=True)
+
+    # Move all files from the found root folder to DB_PATH
+    for item in os.listdir(db_root_folder):
+        s = os.path.join(db_root_folder, item)
+        d = os.path.join(DB_PATH, item)
+        shutil.move(s, d)
         
-    shutil.move(source_db_path, DB_PATH)
-    shutil.rmtree(temp_extract) # Clean up
-    
-    print(f"✅ [DEBUG] Database successfully moved to {DB_PATH}")
+    # Clean up temp folder
+    shutil.rmtree(temp_dir)
+    print(f"✅ [DEBUG] Database files successfully moved to {DB_PATH}")
 
     # 6. Verify final count
     client = chromadb.PersistentClient(path=DB_PATH)
@@ -88,9 +88,9 @@ def initialize_database():
     print(f"📊 [DEBUG] Final chunk count: {coll.count()}")
     
     if coll.count() == 0:
-        st.sidebar.warning("⚠️ Extracted, but database is empty. Check local build.")
+        st.sidebar.warning("⚠️ Extracted successfully, but database contains 0 chunks.")
     else:
-        st.sidebar.success(f"✅ Database loaded: {coll.count()} chunks!")
+        st.sidebar.success(f"✅ Database loaded successfully: {coll.count()} chunks!")
         
     return True
 
@@ -118,5 +118,5 @@ def get_unique_documents():
                 
         return sorted(list(unique_sources))
     except Exception as e:
-        print(f"❌ Error: {e}")
+        print(f"❌ Error fetching documents: {e}")
         return []
