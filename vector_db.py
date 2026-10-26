@@ -14,54 +14,57 @@ DB_ZIP = os.path.join(current_dir, "chroma_db.zip")
 COLLECTION_NAME = "atc_knowledge"
 
 # ==========================================
-# AUTO-HEAL & UI DIAGNOSTIC LOGIC
+# AUTO-HEAL LOGIC (Destroys Ghost Empty Folders)
 # ==========================================
 def initialize_database():
-    """Ensures the database is extracted and populated. Shows errors in UI."""
+    """Ensures the database is extracted and populated."""
     
-    # 1. Check ZIP file size to confirm LFS worked
-    if os.path.exists(DB_ZIP):
-        zip_size = os.path.getsize(DB_ZIP)
-        print(f"📦 [DEBUG] chroma_db.zip size: {zip_size} bytes")
-        
-        if zip_size < 1000000: 
-            st.sidebar.error(f" CRITICAL LFS ERROR: ZIP is only {zip_size} bytes! Git LFS failed to upload the real file.")
-            return False
-    else:
+    # 1. Check if ZIP exists
+    if not os.path.exists(DB_ZIP):
         st.sidebar.error("🚨 CRITICAL: chroma_db.zip not found in repository!")
         return False
 
-    # 2. Extract if folder is missing or empty
-    if not os.path.exists(DB_PATH) or not os.listdir(DB_PATH):
-        print(f"⚠️ [DEBUG] Database folder missing or empty. Extracting...")
+    zip_size = os.path.getsize(DB_ZIP)
+    if zip_size < 1000000: 
+        st.sidebar.error(f" CRITICAL LFS ERROR: ZIP is only {zip_size} bytes!")
+        return False
+
+    # 2. Check if we need to extract
+    needs_extraction = False
+    
+    if os.path.exists(DB_PATH):
+        # Connect to existing DB to check if it's a "ghost" empty folder
+        try:
+            client = chromadb.PersistentClient(path=DB_PATH)
+            coll = client.get_or_create_collection(name=COLLECTION_NAME)
+            if coll.count() == 0:
+                needs_extraction = True
+                print(f"⚠️ [DEBUG] Ghost folder detected! DB exists but has 0 chunks. Will extract ZIP.")
+            else:
+                print(f"✅ [DEBUG] Database is healthy with {coll.count()} chunks. No extraction needed.")
+        except Exception as e:
+            needs_extraction = True
+            print(f"⚠️ [DEBUG] Database is corrupted ({e}). Will extract ZIP.")
+    else:
+        needs_extraction = True
+        print(f"⚠️ [DEBUG] Database folder missing. Will extract ZIP.")
+
+    # 3. Extract the ZIP if needed
+    if needs_extraction:
+        print(f"️ [DEBUG] Extracting {DB_ZIP} into {DB_PATH}...")
+        
+        # Destroy the ghost folder completely
         if os.path.exists(DB_PATH):
             shutil.rmtree(DB_PATH)
             
-        # FIX: Create the target folder first!
+        # Create fresh folder and extract
         os.makedirs(DB_PATH, exist_ok=True)
+        with zipfile.ZipFile(DB_ZIP, 'r') as zip_ref:
+            zip_ref.extractall(DB_PATH)
             
-        try:
-            with zipfile.ZipFile(DB_ZIP, 'r') as zip_ref:
-                # FIX: Extract DIRECTLY into the chroma_db folder!
-                zip_ref.extractall(DB_PATH)
-            print(f"✅ [DEBUG] Extraction successful into {DB_PATH}!")
-            
-            # Debug: List what we just extracted to confirm
-            print(f"📂 [DEBUG] Extracted files: {os.listdir(DB_PATH)}")
-        except Exception as e:
-            st.sidebar.error(f"🚨 EXTRACTION FAILED: {e}")
-            return False
-                
-    # 3. Re-initialize and check count
-    client = chromadb.PersistentClient(path=DB_PATH)
-    collection = client.get_or_create_collection(name=COLLECTION_NAME)
-    
-    if collection.count() == 0:
-        st.sidebar.error(" DATABASE EMPTY: Extracted successfully, but contains 0 chunks. Check build script.")
-        return False
-    else:
-        print(f"✅ [DEBUG] Database loaded with {collection.count()} chunks.")
-        return True
+        print(f"✅ [DEBUG] Extraction successful!")
+
+    return True
 
 # ==========================================
 # CORE FUNCTIONS
@@ -79,6 +82,7 @@ def get_unique_documents():
         total_docs = collection.count()
         
         if total_docs == 0:
+            st.sidebar.warning("️ Database is empty. Please check build script.")
             return []
 
         results = collection.get(include=['metadatas'])
