@@ -2,6 +2,7 @@
 import os
 import chromadb
 import zipfile
+import shutil
 
 # ==========================================
 # CONFIGURATION
@@ -12,24 +13,41 @@ DB_ZIP = os.path.join(current_dir, "chroma_db.zip")
 COLLECTION_NAME = "atc_knowledge"
 
 # ==========================================
-# AUTO-EXTRACT LOGIC
+# AUTO-HEAL & DIAGNOSTIC LOGIC
 # ==========================================
 def initialize_database():
-    """Checks if the DB folder exists. If not, extracts it from the ZIP file."""
-    if not os.path.exists(DB_PATH):
-        print(f"⚠️ [DEBUG] Database folder not found at {DB_PATH}.")
+    """Ensures the database is extracted and populated."""
+    
+    # 1. Check ZIP file size to confirm LFS worked
+    if os.path.exists(DB_ZIP):
+        zip_size = os.path.getsize(DB_ZIP)
+        print(f"📦 [DEBUG] chroma_db.zip size: {zip_size} bytes")
+        if zip_size < 1000000: # Less than 1MB
+            print(f"❌ [DEBUG] WARNING: ZIP file is too small! Git LFS likely failed to upload the real file.")
+    else:
+        print(f"❌ [DEBUG] chroma_db.zip not found!")
+
+    # 2. Extract if folder is missing or empty
+    if not os.path.exists(DB_PATH) or not os.listdir(DB_PATH):
+        print(f"⚠️ [DEBUG] Database folder missing or empty. Extracting...")
+        if os.path.exists(DB_PATH):
+            shutil.rmtree(DB_PATH)
+            
         if os.path.exists(DB_ZIP):
-            print(f"🗜️ [DEBUG] Found {DB_ZIP}. Extracting database...")
             try:
                 with zipfile.ZipFile(DB_ZIP, 'r') as zip_ref:
                     zip_ref.extractall(current_dir)
-                print("✅ [DEBUG] Database extracted successfully!")
+                print("✅ [DEBUG] Extraction successful!")
             except Exception as e:
                 print(f"❌ [DEBUG] Failed to extract ZIP: {e}")
-        else:
-            print(f"❌ [DEBUG] Error: Neither {DB_PATH} nor {DB_ZIP} found. Creating empty DB.")
+                
+    # 3. DIAGNOSTIC: List files inside the extracted folder
+    if os.path.exists(DB_PATH):
+        print(f"📂 [DEBUG] Contents of '{DB_PATH}':")
+        for item in os.listdir(DB_PATH):
+            print(f"   - {item}")
     else:
-        print(f"✅ [DEBUG] Database folder already exists at {DB_PATH}.")
+        print(f"❌ [DEBUG] Extraction failed, folder still missing.")
 
 # ==========================================
 # CORE FUNCTIONS
@@ -45,13 +63,11 @@ def get_unique_documents():
     try:
         collection = get_chroma_collection()
         total_docs = collection.count()
-        print(f" [DEBUG] Total chunks in DB: {total_docs}")
+        print(f"📊 [DEBUG] Total chunks in DB: {total_docs}")
         
         if total_docs == 0:
             return []
 
-        # FIX: Removed the 'limit=2000' so it reads ALL chunks and finds all 131 files!
-        print(f"🔍 [DEBUG] Fetching all metadatas...")
         results = collection.get(include=['metadatas'])
         metadatas = results['metadatas']
         
@@ -66,6 +82,4 @@ def get_unique_documents():
         
     except Exception as e:
         print(f"❌ [DEBUG] Error fetching unique documents: {e}")
-        import traceback
-        traceback.print_exc()
         return []
