@@ -12,54 +12,10 @@ credentials:
       email: edie@caam.gov.my
       name: Edie bin Amir
       password: "$2b$12$aWtgnbUrw0BtQWRYex3nfuPdioitoOqjGd6S6GkNpN.FJRjuVu6Si"
-    Azhan:
-      email: azhan@caam.gov.my
-      name: Mohd Azhan Bin Md Januri
-      password: "$2b$12$kHOzoDvrwzVzMq5Ol/7MCu6cblMZfmjy2pKjYmps9uvSKl0NaNpYa"
-    Farizza:
-      email: farizza@caam.gov.my
-      name: Farizza Rowenna Bt Abd Samad
-      password: "$2b$12$3WbR1G2U8qGrwgKsW9BPyeEbNF2yoRbjcMRfJQuwoolXN6XfJqyTG"
     Rithauddin:
       email: rithauddin@caam.gov.my
       name: Ahmad Rithauddin Bin Hamiyuddin
       password: "$2b$12$OAvOw.93uM9lWfK0gCUBmuxo5cVqOf3OgWun4ArnG1xkbjUJNIolm"
-    Zawawi:
-      email: chezawawi@caam.gov.my
-      name: Che Zawawi Bin Che Musa
-      password: "$2b$12$foL0oAgVBRVN6/ARWvGtq.U6NfMGznYApcPgGn8duttACWVBvHjVe"
-    Rizal:
-      email: rizal@caam.gov.my
-      name: Mohd Rizal Bin Mohamad Salleh
-      password: "$2b$12$ca3VpZ730.kOscVcVCKVsO3iGzaEAeWe9V7cee.CiweMRVc.IBUtu"
-    Pudin:
-      email: non
-      name: Mohd Afifuddin Hilmi Bin Zuraki
-      password: "$2b$12$EGmw2tp1WCNX1GvqhtLcTudsQa9j5JGa4E9VognIrtMRfaUGYkS3W"
-    Siwa:
-      email: siwa@caam.gov.my
-      name: Siwa A/L Mathaban
-      password: "$2b$12$.5aGRpbk2vNNJ.eSIQe0xOtVMxaayKGX45LWOGfQCY11Na8zNvZW6"
-    Syaiful:
-      email: none
-      name: Mohd Syaiful Akhwan Bin Arman
-      password: "$2b$12$q3Ns7JbF1ZFrJKdkDbjA9.z7qM8d5Km/3Qfb8Ho4dUxS3G3HJZudK"
-    Ashaadi:
-      email: none
-      name: Ashaadi Fandzuri Bin Adnan
-      password: "$2b$12$EKgqI3mTDbHmq.ddqP.czeqlfl1RZBYlQCjRWjDTHEd8MKs7AKO.q"
-    Siddiq:
-      email: none
-      name: Siddiq Bin Abdul Halim
-      password: "$2b$12$4ObS8/Azj.sz6GMA0g.vgOf1PZrMiO46jceGPeBpp4asC9leB0VpW"
-    Nurul:
-      email: none
-      name: Nurul Wahidah
-      password: "$2b$12$TjqtaGNTqN1CquwmECnti.K7DtarRZx0uxESphizHPBOKYpxmnX/G"
-    Joyce:
-      email: none
-      name: Joyce binti Junaidi
-      password: "$2b$12$qyo6VV82rOY7bAf5u7AKluhZQUs/5ED8b0IzqFm6FG1MYyPlzcuNC"
     Ilzam:
       email: none
       name: Ilzam Azri Bin Abu Bakar
@@ -68,18 +24,7 @@ credentials:
       email: none
       name: Mohd.Darnalis Bin Ibrahim
       password: "$2b$12$60O081OLRGNzawqbe/rBR.RY7FgT0L6XUwLZROow7ZL7XNoXnrZda"
-    Apit:
-      email: none
-      name: Apit
-      password: "$2b$12$C6KirvIjz9U7IAwKIwAwb.EKz6RVKljdoOrvkXhJ25WgzGuy4ezLC"
-    Osman:
-      email: none
-      name: Osman Bin Md Salleh
-      password: "$2b$12$HDiXzheiCMRhFyeCgWnIGeH/pZafoI9nkRmfFqvujZZare9Nr.5.u"
-    Raja:
-      email: none
-      name: Raja Norherfik Huzain Bin Raja Ramli
-      password: "$2b$12$81rpG/VVvkrWq3y1QFrJp.FHZiA80jo4rke40xrimdkUZcRaQY9.G"
+    
 cookie:
   expiry_days: 14
   key: a_very_secret_random_key_change_this_in_production
