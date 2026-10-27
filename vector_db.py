@@ -4,6 +4,29 @@ import shutil
 import zipfile
 import streamlit as st
 
+# vector_db.py
+
+# ==========================================
+# CRITICAL FIX FOR STREAMLIT CLOUD (LINUX)
+# This MUST be at the very top of the file, before any other imports.
+# It forces ChromaDB 0.5.0 to use a compatible SQLite version.
+# ==========================================
+try:
+    __import__('pysqlite3')
+    import sys
+    sys.modules['sqlite3'] = sys.modules.pop('pysqlite3')
+except ImportError:
+    pass
+
+# Now import the rest of your libraries
+import os
+import shutil
+import zipfile
+import streamlit as st
+import chromadb
+
+current_dir = os.path.dirname(os.path.abspath(__file__))
+
 # ==========================================
 # CRITICAL FIX FOR STREAMLIT CLOUD (LINUX)
 # Forces ChromaDB 0.5.0 to use a compatible SQLite version
