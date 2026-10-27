@@ -1,17 +1,18 @@
 # vector_db.py
 
 # ==========================================
-# CRITICAL FIX FOR STREAMLIT CLOUD (LINUX)
-# This MUST be at the very top of the file, before any other imports.
-# It forces ChromaDB 0.5.0 to use a compatible SQLite version.
+# CRITICAL: SQLite Compatibility Fix for Streamlit Cloud
+# This MUST be at the very top, before any other imports!
 # ==========================================
 try:
-    __import__('pysqlite3')
+    import pysqlite3
     import sys
-    sys.modules['sqlite3'] = sys.modules.pop('pysqlite3')
-except ImportError:
-    pass
+    sys.modules['sqlite3'] = pysqlite3
+    print("✅ [SQLITE] Successfully swapped to pysqlite3")
+except ImportError as e:
+    print(f"⚠️ [SQLITE] pysqlite3 not available: {e}")
 
+# Now import everything else
 import os
 import shutil
 import zipfile
@@ -42,14 +43,14 @@ def initialize_database():
 
     zip_size = os.path.getsize(DB_ZIP)
     if zip_size < 1000000: 
-        st.sidebar.error(f" LFS ERROR: ZIP is only {zip_size} bytes. Git LFS failed.")
+        st.sidebar.error(f"🚨 LFS ERROR: ZIP is only {zip_size} bytes. Git LFS failed.")
         return False
 
     print(f"📦 [EXTRACT] ZIP size: {zip_size:,} bytes")
 
     # 3. Restore database
     st.sidebar.info("Restoring ChromaDB...")
-    print("️ [EXTRACT] Starting extraction process...")
+    print("🛠️ [EXTRACT] Starting extraction process...")
 
     try:
         temp_path = os.path.join(current_dir, "_chroma_restore")
@@ -60,29 +61,20 @@ def initialize_database():
         with zipfile.ZipFile(DB_ZIP, "r") as z:
             z.extractall(temp_path)
 
-        # ==========================================
-        # BULLETPROOF PATH RESOLUTION
-        # ==========================================
+        # Find chroma.sqlite3
         expected_db_dir = os.path.join(temp_path, "chroma_db")
         expected_sqlite = os.path.join(expected_db_dir, "chroma.sqlite3")
 
         sqlite_found = None
 
-        # Strategy A: Check the exact known path first
         if os.path.isdir(expected_db_dir) and os.path.isfile(expected_sqlite):
             sqlite_found = expected_sqlite
             print(f"✅ [EXTRACT] Found chroma.sqlite3 at exact expected path.")
         else:
-            # Strategy B: If exact path fails, print contents and hunt recursively
-            print(f"⚠️ [EXTRACT] Exact path failed. Checking contents of {expected_db_dir}...")
-            
+            print(f"⚠️ [EXTRACT] Exact path failed. Hunting recursively...")
             if os.path.isdir(expected_db_dir):
-                print(f" [EXTRACT] Contents of chroma_db folder: {os.listdir(expected_db_dir)}")
-            else:
-                print(f"❌ [EXTRACT] chroma_db folder does not exist in temp path!")
-                print(f"📂 [EXTRACT] Contents of temp_path: {os.listdir(temp_path)}")
-
-            # Recursive hunt as a last resort
+                print(f"📂 [EXTRACT] Contents of chroma_db folder: {os.listdir(expected_db_dir)}")
+            
             for root, dirs, files in os.walk(temp_path):
                 for f in files:
                     if f.lower().endswith('.sqlite3'):
@@ -101,7 +93,7 @@ def initialize_database():
         extracted_db_dir = os.path.dirname(sqlite_found)
         print(f"🎯 [EXTRACT] Identified DB directory: {extracted_db_dir}")
 
-        # Replace old DB only after successful extraction
+        # Replace old DB
         if os.path.exists(DB_PATH):
             shutil.rmtree(DB_PATH)
 
@@ -112,7 +104,7 @@ def initialize_database():
             
         print(f"✅ [EXTRACT] Database successfully moved to {DB_PATH}")
 
-        # 4. Verify ChromaDB
+        # 4. Verify ChromaDB (This is where the SQLite error happens)
         print("🔍 [VERIFY] Testing ChromaDB connection...")
         client = chromadb.PersistentClient(path=DB_PATH)
         coll = client.get_or_create_collection(COLLECTION_NAME)
