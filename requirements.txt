@@ -1,26 +1,16 @@
-# Core UI and Authentication
 streamlit>=1.32.0
 streamlit-authenticator>=0.3.2
 PyYAML>=6.0.1
 bcrypt>=4.1.2
-
-# Environment and Security
 python-dotenv>=1.0.1
-
-# LLM and RAG Components
 openai>=1.14.0
 chromadb==0.5.0
 numpy<2.0.0
 sentence-transformers>=2.5.1
 pypdf>=4.1.0
 PyMuPDF
-
-# Document Generation
 fpdf2>=2.7.8
-
-# Utilities
 tiktoken>=0.6.0
-
-# Deep Learning dependencies for local embeddings (Required for Cloud)
 torch
 torchvision
+pysqlite3-binary>=0.5.3
